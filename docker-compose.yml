@@ -6,7 +6,7 @@
 #
 # NHIỆM VỤ: bổ sung service `agent`. Yêu cầu:
 #   [ ] build từ Dockerfile trong thư mục hiện tại
-#   [ ] map cổng ra ngoài (8000:8000)
+#   [ ] mở cổng agent trong mạng Compose; nginx map cổng 8000 ra máy host
 #   [ ] KHÔNG viết secret thẳng vào file này — dùng nội suy biến môi trường
 #       `${AGENT_API_KEY}` (docker compose tự đọc từ file .env cùng thư mục)
 #   [ ] REDIS_URL trỏ tới `redis://redis:6379/0` — trong compose, tên service
@@ -14,8 +14,8 @@
 #   [ ] depends_on: redis
 #   [ ] healthcheck gọi /health
 #
-# ĐIỂM CỘNG: thêm service `nginx` làm load balancer (nginx/nginx.conf đã có sẵn)
-#     docker compose up --scale agent=3
+# Nginx làm load balancer để lệnh sau scale thật mà không tranh cổng host:
+#     docker-compose up -d --scale agent=3
 #
 # Kiểm tra: pytest tests/test_cp2.py -v
 # ═══════════════════════════════════════════════════════════════════
@@ -34,10 +34,44 @@ services:
       timeout: 3s
       retries: 5
 
-  # TODO (CP2): khai báo service `agent` ở đây
-  # agent:
-  #   build: .
-  #   ...
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      PORT: "8000"
+      AGENT_API_KEY: "${AGENT_API_KEY:?Set AGENT_API_KEY in .env}"
+      REDIS_URL: redis://redis:6379/0
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-10}
+      MONTHLY_BUDGET_USD: ${MONTHLY_BUDGET_USD:-10.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
 volumes:
   redis-data:
