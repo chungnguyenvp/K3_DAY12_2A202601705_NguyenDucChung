@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test checkpoints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run local checkpoint tests
+        env:
+          AGENT_API_KEY: ci-dummy-key
+          REDIS_URL: "fake://"
+        run: >-
+          python -m pytest
+          tests/test_cp1.py
+          tests/test_cp2.py
+          tests/test_cp3.py
+          tests/test_cp4.py
+          -m "not docker"
+
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build image without publishing it
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: day12-agent:ci
+
+  deploy:
+    name: Deploy and smoke test
+    needs: [test, build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger configured deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::notice::DEPLOY_HOOK_URL is not configured; skipping deploy trigger."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK_URL"
+
+      - name: Smoke test public service
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: |
+          if [ -z "$PUBLIC_URL" ]; then
+            echo "::notice::PUBLIC_URL is not configured; skipping smoke test."
+            exit 0
+          fi
+          sleep 45
+          curl -fsS "${PUBLIC_URL%/}/health"

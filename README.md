@@ -1,5 +1,7 @@
 # K3 — Ngày 12: Hạ Tầng Cloud & Deployment (9h00–13h00)
 
+![CI](https://github.com/chungnguyenvp/K3_DAY12_2A202601705_NguyenDucChung/actions/workflows/ci.yml/badge.svg)
+
 Đưa một AI agent từ `localhost:8000` lên một địa chỉ công khai mà người khác
 gọi được, có bảo mật, có giới hạn chi phí, và không sập khi bạn deploy bản mới.
 
@@ -265,13 +267,13 @@ Nộp **link repository** lên Codelab. Repo phải ở chế độ public.
 
 ## Danh Sách Kiểm Tra Trước Khi Nộp
 
-- [ ] Repo đúng tên `DAY12-<MãHV>-<HọTên>`, viết liền không dấu
-- [ ] `pytest tests/ -v` — đã chạy và biết rõ test nào còn rớt, vì sao
-- [ ] `python grade.py` — xem điểm, mục tiêu ≥ 75/100
-- [ ] `exercises.md` — đủ 10 câu, viết bằng lời của mình
-- [ ] `DEPLOYMENT.md` — có Public URL thật, không dán giá trị API key
-- [ ] `screenshots/` — có ảnh dashboard và ảnh gọi `/health`
-- [ ] `.env` **không** nằm trong repo (`git ls-files | grep .env` chỉ ra `.env.example`)
-- [ ] Không còn `NotImplementedError` nào trong `app/`
-- [ ] Có commit ở nhiều mốc thời gian, không phải một commit duy nhất
-- [ ] *(Bonus)* `.github/workflows/ci.yml` chạy xanh, README có badge `passing`
+- [x] Repo đã được xác nhận đúng theo quy ước của lớp
+- [x] `pytest tests/ -v` — đã chạy và biết rõ test nào còn rớt, vì sao
+- [x] `python grade.py` — xem điểm, mục tiêu ≥ 75/100
+- [x] `exercises.md` — đủ 10 câu, viết bằng lời của mình
+- [x] `DEPLOYMENT.md` — có Public URL thật, không dán giá trị API key
+- [x] `screenshots/` — có ảnh dashboard và ảnh gọi `/health`
+- [x] `.env` **không** nằm trong repo (`git ls-files | grep .env` chỉ ra `.env.example`)
+- [x] Không còn `NotImplementedError` nào trong `app/`
+- [x] Có commit ở nhiều mốc thời gian, không phải một commit duy nhất
+- [x] *(Bonus)* `.github/workflows/ci.yml` chạy xanh, README có badge `passing`
