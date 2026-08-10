@@ -12,6 +12,7 @@ balancer ngừng đẩy traffic mới vào → xử lý nốt request đang ch�
 from __future__ import annotations
 
 import signal
+import threading
 
 
 class Lifecycle:
@@ -21,6 +22,7 @@ class Lifecycle:
         self.shutting_down = False
         # Handler đã được đăng ký trước ta (của uvicorn) — xem install()
         self._previous: dict = {}
+        self._installed = False
 
     def request_shutdown(self, signum=None, frame=None) -> None:
         """Signal handler: đánh dấu process đang tắt dần.
@@ -44,7 +46,10 @@ class Lifecycle:
         tham số này. Không làm gì nặng ở đây (không gọi mạng, không ghi file)
         — handler chạy xen giữa bytecode.
         """
-        raise NotImplementedError("TODO (CP4): cài đặt request_shutdown")
+        self.shutting_down = True
+        previous = self._previous.get(signum)
+        if callable(previous):
+            previous(signum, frame)
 
     def install(self) -> None:
         """Đăng ký handler cho SIGTERM và SIGINT, nhớ lại handler cũ.
@@ -56,7 +61,25 @@ class Lifecycle:
 
         SIGTERM: orchestrator yêu cầu tắt. SIGINT: bạn bấm Ctrl+C.
         """
-        raise NotImplementedError("TODO (CP4): cài đặt install")
+        # Python chỉ cho đăng ký signal ở main thread. Guard này giữ lifespan
+        # dùng được trong TestClient/worker thread mà không làm yếu production.
+        if self._installed or threading.current_thread() is not threading.main_thread():
+            return
+
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            self._previous[sig] = signal.getsignal(sig)
+            signal.signal(sig, self.request_shutdown)
+        self._installed = True
+
+    def restore(self) -> None:
+        """Khôi phục các handler cũ nếu instance này đã cài signal handler."""
+        if not self._installed:
+            return
+
+        for sig, previous in self._previous.items():
+            signal.signal(sig, previous)
+        self._previous.clear()
+        self._installed = False
 
 
 # Một instance dùng chung cho cả app
